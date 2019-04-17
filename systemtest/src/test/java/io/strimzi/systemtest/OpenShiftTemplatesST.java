@@ -9,6 +9,9 @@ import io.strimzi.api.kafka.KafkaConnectList;
 import io.strimzi.api.kafka.KafkaConnectS2IList;
 import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.KafkaTopicList;
+import io.strimzi.api.kafka.model.DoneableKafka;
+import io.strimzi.api.kafka.model.DoneableKafkaConnect;
+import io.strimzi.api.kafka.model.DoneableKafkaConnectS2I;
 import io.strimzi.api.kafka.model.DoneableKafkaTopic;
 import io.strimzi.api.kafka.model.JbodStorage;
 import io.strimzi.api.kafka.model.Kafka;
@@ -73,7 +76,7 @@ public class OpenShiftTemplatesST extends AbstractST {
                 "ZOOKEEPER_NODE_COUNT", "1",
                 "KAFKA_NODE_COUNT", "1"));
 
-        Kafka kafka = KUBE_CLIENT.getKafka(clusterName);
+        Kafka kafka = getKafka(clusterName);
         assertNotNull(kafka);
 
         assertEquals(1, kafka.getSpec().getKafka().getReplicas());
@@ -90,7 +93,7 @@ public class OpenShiftTemplatesST extends AbstractST {
                 "ZOOKEEPER_NODE_COUNT", "1",
                 "KAFKA_NODE_COUNT", "1"));
 
-        Kafka kafka = KUBE_CLIENT.getKafka(clusterName);
+        Kafka kafka = getKafka(clusterName);
         assertNotNull(kafka);
         assertEquals(1, kafka.getSpec().getKafka().getReplicas());
         assertEquals(1, kafka.getSpec().getZookeeper().getReplicas());
@@ -112,7 +115,7 @@ public class OpenShiftTemplatesST extends AbstractST {
                 "KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR", "5"));
 
         //TODO Add assertions to check that Kafka brokers have a custom configuration
-        Kafka kafka = KUBE_CLIENT.getKafka(clusterName);
+        Kafka kafka = getKafka(clusterName);
         assertNotNull(kafka);
 
         assertEquals(30, kafka.getSpec().getZookeeper().getLivenessProbe().getInitialDelaySeconds());
@@ -144,7 +147,7 @@ public class OpenShiftTemplatesST extends AbstractST {
                 "KAFKA_VOLUME_CAPACITY", "2Gi"));
 
         //TODO Add assertions to check that Kafka brokers have a custom configuration
-        Kafka kafka = KUBE_CLIENT.getKafka(clusterName);
+        Kafka kafka = getKafka(clusterName);
         assertNotNull(kafka);
 
         assertEquals(30, kafka.getSpec().getZookeeper().getLivenessProbe().getInitialDelaySeconds());
@@ -169,7 +172,7 @@ public class OpenShiftTemplatesST extends AbstractST {
         oc.newApp("strimzi-connect", map("CLUSTER_NAME", clusterName,
                 "INSTANCES", "1"));
 
-        KafkaConnect connect = KUBE_CLIENT.getKafkaConnect(clusterName);
+        KafkaConnect connect = getKafkaConnect(clusterName);
         assertNotNull(connect);
         assertEquals(1, connect.getSpec().getReplicas());
     }
@@ -181,7 +184,7 @@ public class OpenShiftTemplatesST extends AbstractST {
         oc.newApp("strimzi-connect-s2i", map("CLUSTER_NAME", clusterName,
                 "INSTANCES", "1"));
 
-        KafkaConnectS2I cm = KUBE_CLIENT.getKafkaConnectS2I(clusterName);
+        KafkaConnectS2I cm = getKafkaConnectS2I(clusterName);
         assertNotNull(cm);
         assertEquals(1, cm.getSpec().getReplicas());
     }
