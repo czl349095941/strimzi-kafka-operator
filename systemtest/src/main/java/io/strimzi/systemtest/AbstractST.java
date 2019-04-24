@@ -702,7 +702,7 @@ public abstract class AbstractST extends BaseITST implements TestSeparator, Cons
 
     @AfterEach
     void teardownEnvironmentMethod(ExtensionContext context) throws Exception {
-        if (ENVIRONMENT.getNoteardown().isEmpty()) {
+        if (ENVIRONMENT.getNoteardown() == null) {
             if (context.getExecutionException().isPresent()) {
                 LOGGER.info("Test execution contains exception, going to recreate test environment");
                 recreateTestEnv(clusterOperatorNamespace, bindingsNamespaces);
@@ -714,7 +714,7 @@ public abstract class AbstractST extends BaseITST implements TestSeparator, Cons
 
     @AfterAll
     void teardownEnvironmentClass() {
-        if (ENVIRONMENT.getNoteardown().isEmpty()) {
+        if (ENVIRONMENT.getNoteardown() == null) {
             tearDownEnvironmentAfterAll();
             teardownEnvForOperator();
         }
