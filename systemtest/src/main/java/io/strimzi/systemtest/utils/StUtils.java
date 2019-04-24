@@ -13,7 +13,7 @@ import io.fabric8.kubernetes.client.internal.readiness.Readiness;
 import io.strimzi.api.kafka.Crds;
 import io.strimzi.systemtest.Resources;
 import io.strimzi.test.TestUtils;
-import io.strimzi.test.client.Kubernetes;
+import io.strimzi.test.k8s.Kubernetes;
 import io.strimzi.test.k8s.KubeClusterResource;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -129,7 +129,7 @@ public class StUtils {
     }
 
 
-    public static Map<String, String> waitTillSsHasRolled(String namespace, String name, Map<String, String> snapshot) {
+    public static Map<String, String> waitTillSsHasRolled(String namespace, String name, int expectedPods, Map<String, String> snapshot) {
         TestUtils.waitFor("SS roll of " + name,
             1_000, 450_000, () -> {
                 try {
@@ -139,15 +139,15 @@ public class StUtils {
                     return false;
                 }
             });
-        StUtils.waitForAllStatefulSetPodsReady(name);
+        StUtils.waitForAllStatefulSetPodsReady(name, expectedPods);
         return ssSnapshot(namespace, name);
     }
 
-    public static Map<String, String> waitTillDepHasRolled(String namespace, String name, Map<String, String> snapshot) {
+    public static Map<String, String> waitTillDepHasRolled(String namespace, String name, int expectedPods, Map<String, String> snapshot) {
         long timeLeft = TestUtils.waitFor("Deployment roll of " + name,
             1_000, 300_000, () -> depHasRolled(namespace, name, snapshot));
         StUtils.waitForDeploymentReady(namespace, name);
-        StUtils.waitForPodsReady(KUBE_CLIENT.getDeployment(name).getSpec().getSelector(), true);
+        StUtils.waitForPodsReady(KUBE_CLIENT.getDeployment(name).getSpec().getSelector(), expectedPods, true);
         return depSnapshot(namespace, name);
     }
 
@@ -178,20 +178,24 @@ public class StUtils {
     /**
      * Wait until the SS is ready and all of its Pods are also ready
      */
-    public static void waitForAllStatefulSetPodsReady(String name) {
+    public static void waitForAllStatefulSetPodsReady(String name, int expectPods) {
         LOGGER.info("Waiting for StatefulSet {} to be ready", name);
         TestUtils.waitFor("statefulset " + name, Resources.POLL_INTERVAL_FOR_RESOURCE_READINESS, Resources.TIMEOUT_FOR_RESOURCE_READINESS,
             () -> KUBE_CLIENT.getStatefulSetStatus(name));
         LOGGER.info("StatefulSet {} is ready", name);
         LOGGER.info("Waiting for Pods of StatefulSet {} to be ready", name);
-        waitForPodsReady(KUBE_CLIENT.getStatefulSetSelectors(name), true);
+        waitForPodsReady(KUBE_CLIENT.getStatefulSetSelectors(name), expectPods, true);
     }
 
-    public static void waitForPodsReady(LabelSelector selector, boolean containers) {
+    public static void waitForPodsReady(LabelSelector selector, int expectPods, boolean containers) {
         TestUtils.waitFor("All pods matching " + selector + "to be ready", Resources.POLL_INTERVAL_FOR_RESOURCE_READINESS, Resources.TIMEOUT_FOR_RESOURCE_READINESS, () -> {
             List<Pod> pods = KUBE_CLIENT.listPods(selector);
             if (pods.isEmpty()) {
                 LOGGER.debug("Not ready (no pods matching {})", selector);
+                return false;
+            }
+            if (pods.size() != expectPods) {
+                LOGGER.debug("Expected pods not ready");
                 return false;
             }
             for (Pod pod : pods) {

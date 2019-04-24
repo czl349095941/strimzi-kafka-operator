@@ -60,7 +60,7 @@ class RecoveryST extends AbstractST {
         StUtils.waitForStatefulSetDeletion(kafkaStatefulSetName);
 
         LOGGER.info("Waiting for recovery {}", kafkaStatefulSetName);
-        StUtils.waitForAllStatefulSetPodsReady(kafkaStatefulSetName);
+        StUtils.waitForAllStatefulSetPodsReady(kafkaStatefulSetName, 1);
 
         TimeMeasuringSystem.stopOperation(operationID);
         //Test that CO doesn't have any exceptions in log
@@ -78,7 +78,7 @@ class RecoveryST extends AbstractST {
         StUtils.waitForStatefulSetDeletion(zookeeperStatefulSetName);
 
         LOGGER.info("Waiting for recovery {}", zookeeperStatefulSetName);
-        StUtils.waitForAllStatefulSetPodsReady(zookeeperStatefulSetName);
+        StUtils.waitForAllStatefulSetPodsReady(zookeeperStatefulSetName, 3);
 
         TimeMeasuringSystem.stopOperation(operationID);
         //Test that CO doesn't have any exceptions in log

@@ -19,7 +19,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Collections;
 import java.util.List;
 
 import static io.strimzi.test.extensions.StrimziExtension.FLAKY;
@@ -51,8 +50,8 @@ class ConnectS2IST extends AbstractST {
 
         KUBE_CMD_CLIENT.waitForDeploymentConfig(CONNECT_DEPLOYMENT_NAME);
 
-        String connectS2IPodName = KUBE_CLIENT.listPods(Collections.singletonMap("type", "kafka-connect-s2i")).get(0).getMetadata().getName();
-        String plugins = KUBE_CLIENT.execInPod(connectS2IPodName, "curl", "-X", "GET", "http://localhost:8083/connector-plugins");
+        String connectS2IPodName = KUBE_CLIENT.listPods("type", "kafka-connect-s2i").get(0).getMetadata().getName();
+        String plugins = KUBE_CLIENT.execInPod(connectS2IPodName, kafkaConnectName(CONNECT_CLUSTER_NAME), "curl", "-X", "GET", "http://localhost:8083/connector-plugins");
 
         assertThat(plugins, containsString("io.debezium.connector.mongodb.MongoDbConnector"));
     }

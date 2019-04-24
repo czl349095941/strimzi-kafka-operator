@@ -99,8 +99,8 @@ class KafkaST extends MessagingBaseST {
         Oc oc = (Oc) KUBE_CMD_CLIENT;
         String clusterName = "openshift-my-cluster";
         oc.newApp("strimzi-ephemeral", map("CLUSTER_NAME", clusterName));
-        StUtils.waitForAllStatefulSetPodsReady(zookeeperClusterName(clusterName));
-        StUtils.waitForAllStatefulSetPodsReady(kafkaClusterName(clusterName));
+        StUtils.waitForAllStatefulSetPodsReady(zookeeperClusterName(clusterName), 3);
+        StUtils.waitForAllStatefulSetPodsReady(kafkaClusterName(clusterName), 3);
         StUtils.waitForDeploymentReady(entityOperatorDeploymentName(clusterName));
 
         //Testing docker images
@@ -145,7 +145,7 @@ class KafkaST extends MessagingBaseST {
         final String firstPodName = kafkaPodName(CLUSTER_NAME,  0);
         LOGGER.info("Scaling up to {}", scaleTo);
         replaceKafkaResource(CLUSTER_NAME, k -> k.getSpec().getKafka().setReplicas(initialReplicas + 1));
-        StUtils.waitForAllStatefulSetPodsReady(kafkaClusterName(CLUSTER_NAME));
+        StUtils.waitForAllStatefulSetPodsReady(kafkaClusterName(CLUSTER_NAME), initialReplicas + 1);
 
         // Test that the new broker has joined the kafka cluster by checking it knows about all the other broker's API versions
         // (execute bash because we want the env vars expanded in the pod)
@@ -168,7 +168,7 @@ class KafkaST extends MessagingBaseST {
         replaceKafkaResource(CLUSTER_NAME, k -> {
             k.getSpec().getKafka().setReplicas(initialReplicas);
         });
-        StUtils.waitForAllStatefulSetPodsReady(kafkaClusterName(CLUSTER_NAME));
+        StUtils.waitForAllStatefulSetPodsReady(kafkaClusterName(CLUSTER_NAME), initialReplicas);
 
         final int finalReplicas = KUBE_CLIENT.getStatefulSet(kafkaClusterName(CLUSTER_NAME)).getStatus().getReplicas();
         assertEquals(initialReplicas, finalReplicas);
