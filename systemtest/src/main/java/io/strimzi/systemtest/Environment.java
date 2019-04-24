@@ -47,6 +47,8 @@ public class Environment {
      */
     public static final String STRIMZI_FULL_RECONCILIATION_INTERVAL_MS = "STRIMZI_FULL_RECONCILIATION_INTERVAL_MS";
 
+    public static final String NOTEARDOWN = "NOTEARDOWN";
+
     public static final String STRIMZI_ORG_DEFAULT = "strimzi";
     public static final String STRIMZI_TAG_DEFAULT = "latest";
     public static final String TEST_LOG_DIR_DEFAULT = "../systemtest/target/logs/";
@@ -65,6 +67,7 @@ public class Environment {
     private final String kubernetesDomain = System.getenv().getOrDefault(KUBERNETES_DOMAIN_ENV, KUBERNETES_DOMAIN_DEFAULT);
     private final String kubernetesApiUrl = System.getenv().getOrDefault(KUBERNETES_API_URL_ENV, KUBERNETES_API_URL_DEFAULT);
     private final String strimziFullReconciliationIntervalMs = System.getenv().getOrDefault(STRIMZI_FULL_RECONCILIATION_INTERVAL_MS, STRIMZI_FULL_RECONCILIATION_INTERVAL_MS_DEFAULT);
+    private final String noTeardown = System.getenv(NOTEARDOWN);
 
     private Environment() {
         String debugFormat = "{}:{}";
@@ -115,5 +118,9 @@ public class Environment {
 
     public String getStrimziFullReconciliationInterval() {
         return strimziFullReconciliationIntervalMs;
+    }
+
+    public String getNoteardown() {
+        return noTeardown;
     }
 }
