@@ -22,7 +22,6 @@ import io.strimzi.api.kafka.model.PersistentClaimStorage;
 import io.strimzi.test.TestUtils;
 import io.strimzi.test.annotations.OpenShiftOnly;
 import io.strimzi.test.extensions.StrimziExtension;
-import io.strimzi.test.k8s.KubeClusterResource;
 import io.strimzi.test.k8s.Oc;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -52,8 +51,6 @@ public class OpenShiftTemplatesST extends AbstractST {
     private static final Logger LOGGER = LogManager.getLogger(OpenShiftTemplatesST.class);
 
     public static final String NAMESPACE = "template-test";
-
-    public static KubeClusterResource cluster = new KubeClusterResource();
     private Oc oc = (Oc) KUBE_CMD_CLIENT;
 
     public Kafka getKafka(String clusterName) {

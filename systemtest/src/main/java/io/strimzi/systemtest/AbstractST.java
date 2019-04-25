@@ -235,7 +235,7 @@ public abstract class AbstractST extends BaseITST implements TestSeparator, Cons
             String zookeeperPort = String.valueOf(2181 * 10 + podIndex);
             waitFor("mntr", pollMs, timeoutMs, () -> {
                 try {
-                    String output = KUBE_CLIENT.execInPodContainer(zookeeperPod, "zookeeper",
+                    String output = KUBE_CLIENT.execInPod(zookeeperPod, "zookeeper",
                         "/bin/bash", "-c", "echo mntr | nc localhost " + zookeeperPort);
 
                     if (pattern.matcher(output).find()) {
@@ -249,7 +249,7 @@ public abstract class AbstractST extends BaseITST implements TestSeparator, Cons
                 () -> LOGGER.info("zookeeper `mntr` output at the point of timeout does not match {}:{}{}",
                     pattern.pattern(),
                     System.lineSeparator(),
-                    indent(KUBE_CLIENT.execInPodContainer(zookeeperPod, "zookeeper", "/bin/bash", "-c", "echo mntr | nc localhost " + zookeeperPort)))
+                    indent(KUBE_CLIENT.execInPod(zookeeperPod, "zookeeper", "/bin/bash", "-c", "echo mntr | nc localhost " + zookeeperPort)))
             );
         }
     }
@@ -293,14 +293,14 @@ public abstract class AbstractST extends BaseITST implements TestSeparator, Cons
         return "$.spec.containers[*].env[?(@.name=='" + envVar + "')].value";
     }
 
-    public void sendMessages(String podName, String clusterName, String topic, int messagesCount) {
+    public void sendMessages(String podName, String clusterName, String containerName, String topic, int messagesCount) {
         LOGGER.info("Sending messages");
         String command = "sh bin/kafka-verifiable-producer.sh --broker-list " +
                 KafkaResources.plainBootstrapAddress(clusterName) + " --topic " + topic + " --max-messages " + messagesCount + "";
 
         LOGGER.info("Command for kafka-verifiable-producer.sh {}", command);
 
-        KUBE_CLIENT.execInPod(podName, "kafka", "/bin/bash", "-c", command);
+        KUBE_CLIENT.execInPod(podName, containerName, "/bin/bash", "-c", command);
     }
 
     public String consumeMessages(String clusterName, String topic, int groupID, int timeout, int kafkaPodID) {
@@ -332,8 +332,8 @@ public abstract class AbstractST extends BaseITST implements TestSeparator, Cons
         assertEquals(cpuRequest, requests.get("cpu").getAmount());
     }
 
-    protected void assertExpectedJavaOpts(String podName, String expectedXmx, String expectedXms, String expectedServer, String expectedXx) {
-        List<List<String>> cmdLines = commandLines(podName, "kafka", "java");
+    protected void assertExpectedJavaOpts(String podName, String containerName, String expectedXmx, String expectedXms, String expectedServer, String expectedXx) {
+        List<List<String>> cmdLines = commandLines(podName, containerName, "java");
         assertEquals(1, cmdLines.size(), "Expected exactly 1 java process to be running");
         List<String> cmd = cmdLines.get(0);
         int toIndex = cmd.indexOf("-jar");
@@ -376,14 +376,14 @@ public abstract class AbstractST extends BaseITST implements TestSeparator, Cons
     public List<String> listTopicsUsingPodCLI(String clusterName, int zkPodId) {
         String podName = zookeeperPodName(clusterName, zkPodId);
         int port = 2181 * 10 + zkPodId;
-        return Arrays.asList(KUBE_CLIENT.execInPodContainer(podName, "zookeeper", "/bin/bash", "-c",
+        return Arrays.asList(KUBE_CLIENT.execInPod(podName, "zookeeper", "/bin/bash", "-c",
                 "bin/kafka-topics.sh --list --zookeeper localhost:" + port).split("\\s+"));
     }
 
     public String createTopicUsingPodCLI(String clusterName, int zkPodId, String topic, int replicationFactor, int partitions) {
         String podName = zookeeperPodName(clusterName, zkPodId);
         int port = 2181 * 10 + zkPodId;
-        return KUBE_CLIENT.execInPodContainer(podName, "zookeeper", "/bin/bash", "-c",
+        return KUBE_CLIENT.execInPod(podName, "zookeeper", "/bin/bash", "-c",
                 "bin/kafka-topics.sh --zookeeper localhost:" + port + " --create " + " --topic " + topic +
                         " --replication-factor " + replicationFactor + " --partitions " + partitions);
     }
@@ -391,21 +391,21 @@ public abstract class AbstractST extends BaseITST implements TestSeparator, Cons
     public String deleteTopicUsingPodCLI(String clusterName, int zkPodId, String topic) {
         String podName = zookeeperPodName(clusterName, zkPodId);
         int port = 2181 * 10 + zkPodId;
-        return KUBE_CLIENT.execInPodContainer(podName, "zookeeper", "/bin/bash", "-c",
+        return KUBE_CLIENT.execInPod(podName, "zookeeper", "/bin/bash", "-c",
                 "bin/kafka-topics.sh --zookeeper localhost:" + port + " --delete --topic " + topic);
     }
 
     public List<String>  describeTopicUsingPodCLI(String clusterName, int zkPodId, String topic) {
         String podName = zookeeperPodName(clusterName, zkPodId);
         int port = 2181 * 10 + zkPodId;
-        return Arrays.asList(KUBE_CLIENT.execInPodContainer(podName, "zookeeper", "/bin/bash", "-c",
+        return Arrays.asList(KUBE_CLIENT.execInPod(podName, "zookeeper", "/bin/bash", "-c",
                 "bin/kafka-topics.sh --zookeeper localhost:" + port + " --describe --topic " + topic).split("\\s+"));
     }
 
     public String updateTopicPartitionsCountUsingPodCLI(String clusterName, int zkPodId, String topic, int partitions) {
         String podName = zookeeperPodName(clusterName, zkPodId);
         int port = 2181 * 10 + zkPodId;
-        return KUBE_CLIENT.execInPodContainer(podName, "zookeeper", "/bin/bash", "-c",
+        return KUBE_CLIENT.execInPod(podName, "zookeeper", "/bin/bash", "-c",
                 "bin/kafka-topics.sh --zookeeper localhost:" + port + " --alter --topic " + topic + " --partitions " + partitions);
     }
 

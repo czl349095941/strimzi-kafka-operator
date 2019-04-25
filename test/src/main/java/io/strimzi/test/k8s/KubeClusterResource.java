@@ -24,22 +24,19 @@ public class KubeClusterResource {
     private KubeClient cmdClient;
     private Kubernetes client;
     private HelmClient helmClient;
+    private static KubeClusterResource kubeClusterResource;
 
-    public KubeClusterResource() {
+    private KubeClusterResource() {
         bootstrap = true;
     }
 
-    public KubeClusterResource(KubeCluster cluster, KubeClient client) {
-        bootstrap = false;
-        this.cluster = cluster;
-        this.cmdClient = client;
-    }
-
-    public KubeClusterResource(KubeCluster cluster, KubeClient client, HelmClient helmClient) {
-        bootstrap = false;
-        this.cluster = cluster;
-        this.cmdClient = client;
-        this.helmClient = helmClient;
+    public static KubeClusterResource getKubeClusterResource() {
+        if (kubeClusterResource == null) {
+            kubeClusterResource = new KubeClusterResource();
+            return kubeClusterResource;
+        } else {
+            return kubeClusterResource;
+        }
     }
 
     /** Gets the namespace in use */
