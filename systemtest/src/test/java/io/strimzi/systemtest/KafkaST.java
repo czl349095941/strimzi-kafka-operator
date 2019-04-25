@@ -1078,8 +1078,8 @@ class KafkaST extends MessagingBaseST {
         String userName = "alice";
         resources().tlsUser(CLUSTER_NAME, userName).done();
         waitFor("Wait for secrets became available", GLOBAL_POLL_INTERVAL, TIMEOUT_FOR_GET_SECRETS,
-            () -> CLIENT.secrets().inNamespace(NAMESPACE).withName("alice").get() != null,
-            () -> LOGGER.error("Couldn't find user secret {}", CLIENT.secrets().inNamespace(NAMESPACE).list().getItems()));
+            () -> KUBE_CLIENT.getSecret("alice") != null,
+            () -> LOGGER.error("Couldn't find user secret {}", KUBE_CLIENT.listSecrets()));
 
         waitForClusterAvailabilityTls(userName, NAMESPACE);
     }
@@ -1173,7 +1173,6 @@ class KafkaST extends MessagingBaseST {
     @Test
     @Tag(REGRESSION)
     void testKafkaJBODDeleteClaimsTrueFalse() {
-        int diskCountPerReplica = 2;
         int kafkaReplicas = 2;
         int diskSizeGi = 10;
 
@@ -1192,7 +1191,7 @@ class KafkaST extends MessagingBaseST {
         // kafka cluster already deployed
         verifyVolumeNamesAndLabels(2, 2, 10);
         LOGGER.info("Deleting cluster");
-        KUBE_CLIENT.deleteByName("kafka", CLUSTER_NAME).waitForResourceDeletion("pod", kafkaPodName(CLUSTER_NAME, 0));
+        KUBE_CMD_CLIENT.deleteByName("kafka", CLUSTER_NAME).waitForResourceDeletion("pod", kafkaPodName(CLUSTER_NAME, 0));
         verifyPVCDeletion(2, volumes);
     }
 
@@ -1216,7 +1215,7 @@ class KafkaST extends MessagingBaseST {
 
         verifyVolumeNamesAndLabels(2, 2, 10);
         LOGGER.info("Deleting cluster");
-        KUBE_CLIENT.deleteByName("kafka", CLUSTER_NAME).waitForResourceDeletion("pod", kafkaPodName(CLUSTER_NAME, 0));
+        KUBE_CMD_CLIENT.deleteByName("kafka", CLUSTER_NAME).waitForResourceDeletion("pod", kafkaPodName(CLUSTER_NAME, 0));
         verifyPVCDeletion(2, volumes);
     }
 
@@ -1239,13 +1238,13 @@ class KafkaST extends MessagingBaseST {
         // kafka cluster already deployed
         verifyVolumeNamesAndLabels(2, 2, 10);
         LOGGER.info("Deleting cluster");
-        KUBE_CLIENT.deleteByName("kafka", CLUSTER_NAME).waitForResourceDeletion("pod", kafkaPodName(CLUSTER_NAME, 0));
+        KUBE_CMD_CLIENT.deleteByName("kafka", CLUSTER_NAME).waitForResourceDeletion("pod", kafkaPodName(CLUSTER_NAME, 0));
         verifyPVCDeletion(2, volumes);
     }
 
     void verifyPVCDeletion(int kafkaReplicas, List<SingleVolumeStorage> volumes) {
         ArrayList pvcs = new ArrayList();
-        CLIENT.inNamespace(NAMESPACE).persistentVolumeClaims().list().getItems().stream()
+        KUBE_CLIENT.listPersistentVolumeClaims().stream()
                 .forEach(pvc -> pvcs.add(pvc.getMetadata().getName()));
 
         volumes.forEach(volume -> {
@@ -1266,7 +1265,7 @@ class KafkaST extends MessagingBaseST {
 
         ArrayList pvcs = new ArrayList();
 
-        CLIENT.inNamespace(NAMESPACE).persistentVolumeClaims().list().getItems().stream()
+        KUBE_CLIENT.listPersistentVolumeClaims().stream()
                 .forEach(volume -> {
                     String volumeName = volume.getMetadata().getName();
                     pvcs.add(volumeName);
@@ -1291,9 +1290,9 @@ class KafkaST extends MessagingBaseST {
 
             LOGGER.info("Getting list of mounted data sources and PVCs on Kafka pod " + i);
             for (int j = 0; j < diskCountPerReplica; j++) {
-                dataSourcesOnPod.add(CLIENT.inNamespace(NAMESPACE).pods().
-                        withName(CLUSTER_NAME.concat("-kafka-" + i)).get().getSpec().getVolumes().get(j).getName());
-                pvcsOnPod.add(CLIENT.inNamespace(NAMESPACE).pods().withName(CLUSTER_NAME.concat("-kafka-" + i)).get()
+                dataSourcesOnPod.add(KUBE_CLIENT.getPod(CLUSTER_NAME.concat("-kafka-" + i))
+                        .getSpec().getVolumes().get(j).getName());
+                pvcsOnPod.add(KUBE_CLIENT.getPod(CLUSTER_NAME.concat("-kafka-" + i))
                         .getSpec().getVolumes().get(j).getPersistentVolumeClaim().getClaimName());
             }
 
