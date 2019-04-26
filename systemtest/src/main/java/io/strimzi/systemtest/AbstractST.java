@@ -121,6 +121,7 @@ public abstract class AbstractST extends BaseITST implements TestSeparator, Cons
 
     public static final String TEST_LOG_DIR = ENVIRONMENT.getTestLogDir();
 
+
     Resources resources;
     static Resources testClassResources;
     static String operationID;
@@ -188,7 +189,7 @@ public abstract class AbstractST extends BaseITST implements TestSeparator, Cons
 
     private <T extends CustomResource, L extends CustomResourceList<T>, D extends Doneable<T>>
         void replaceCrdResource(Class<T> crdClass, Class<L> listClass, Class<D> doneableClass, String resourceName, Consumer<T> editor) {
-        Resource<T, D> namedResource = Crds.operation(KUBE_CLIENT.getClient(), crdClass, listClass, doneableClass).inNamespace(KUBE_CLIENT.getNamespace()).withName(resourceName);
+        Resource<T, D> namedResource = Crds.operation(kubeClient().getClient(), crdClass, listClass, doneableClass).inNamespace(kubeClient().getNamespace()).withName(resourceName);
         T resource = namedResource.get();
         editor.accept(resource);
         namedResource.replace(resource);
@@ -214,7 +215,7 @@ public abstract class AbstractST extends BaseITST implements TestSeparator, Cons
         AtomicReference<String> versions = new AtomicReference<>();
         waitFor("kafka-broker-api-versions.sh success", GET_BROKER_API_INTERVAL, GET_BROKER_API_TIMEOUT, () -> {
             try {
-                String output = KUBE_CLIENT.execInPod(podName, "kafka",
+                String output = kubeClient().execInPod(podName, "kafka",
                         "/opt/kafka/bin/kafka-broker-api-versions.sh", "--bootstrap-server", "localhost:9092");
                 versions.set(output);
                 return true;
@@ -235,7 +236,7 @@ public abstract class AbstractST extends BaseITST implements TestSeparator, Cons
             String zookeeperPort = String.valueOf(2181 * 10 + podIndex);
             waitFor("mntr", pollMs, timeoutMs, () -> {
                 try {
-                    String output = KUBE_CLIENT.execInPod(zookeeperPod, "zookeeper",
+                    String output = kubeClient().execInPod(zookeeperPod, "zookeeper",
                         "/bin/bash", "-c", "echo mntr | nc localhost " + zookeeperPort);
 
                     if (pattern.matcher(output).find()) {
@@ -249,7 +250,7 @@ public abstract class AbstractST extends BaseITST implements TestSeparator, Cons
                 () -> LOGGER.info("zookeeper `mntr` output at the point of timeout does not match {}:{}{}",
                     pattern.pattern(),
                     System.lineSeparator(),
-                    indent(KUBE_CLIENT.execInPod(zookeeperPod, "zookeeper", "/bin/bash", "-c", "echo mntr | nc localhost " + zookeeperPort)))
+                    indent(kubeClient().execInPod(zookeeperPod, "zookeeper", "/bin/bash", "-c", "echo mntr | nc localhost " + zookeeperPort)))
             );
         }
     }
@@ -300,12 +301,12 @@ public abstract class AbstractST extends BaseITST implements TestSeparator, Cons
 
         LOGGER.info("Command for kafka-verifiable-producer.sh {}", command);
 
-        KUBE_CLIENT.execInPod(podName, containerName, "/bin/bash", "-c", command);
+        kubeClient().execInPod(podName, containerName, "/bin/bash", "-c", command);
     }
 
     public String consumeMessages(String clusterName, String topic, int groupID, int timeout, int kafkaPodID) {
         LOGGER.info("Consuming messages");
-        String output = KUBE_CLIENT.execInPod(kafkaPodName(clusterName, kafkaPodID), "kafka", "/bin/bash", "-c",
+        String output = kubeClient().execInPod(kafkaPodName(clusterName, kafkaPodID), "kafka", "/bin/bash", "-c",
                 "bin/kafka-verifiable-consumer.sh --broker-list " +
                         KafkaResources.plainBootstrapAddress(clusterName) + " --topic " + topic + " --group-id " + groupID + " & sleep "
                         + timeout + "; kill %1");
@@ -316,9 +317,9 @@ public abstract class AbstractST extends BaseITST implements TestSeparator, Cons
     }
 
     protected void assertResources(String namespace, String podName, String containerName, String memoryLimit, String cpuLimit, String memoryRequest, String cpuRequest) {
-        Pod po = KUBE_CLIENT.getPod(podName);
+        Pod po = kubeClient().getPod(podName);
         assertNotNull(po, "Not found an expected pod  " + podName + " in namespace " + namespace + " but found " +
-                KUBE_CLIENT.listPods().stream().map(p -> p.getMetadata().getName()).collect(Collectors.toList()));
+                kubeClient().listPods().stream().map(p -> p.getMetadata().getName()).collect(Collectors.toList()));
 
         Optional optional = po.getSpec().getContainers().stream().filter(c -> c.getName().equals(containerName)).findFirst();
         assertTrue(optional.isPresent(), "Not found an expected container " + containerName);
@@ -358,7 +359,7 @@ public abstract class AbstractST extends BaseITST implements TestSeparator, Cons
 
     private List<List<String>> commandLines(String podName, String containerName, String cmd) {
         List<List<String>> result = new ArrayList<>();
-        String output = KUBE_CLIENT.execInPod(podName, containerName, "/bin/bash", "-c",
+        String output = kubeClient().execInPod(podName, containerName, "/bin/bash", "-c",
                 "for pid in $(ps -C java -o pid h); do cat /proc/$pid/cmdline; done"
         );
         for (String cmdLine : output.split("\n")) {
@@ -369,21 +370,21 @@ public abstract class AbstractST extends BaseITST implements TestSeparator, Cons
 
     void assertNoCoErrorsLogged(long sinceSeconds) {
         LOGGER.info("Search in strimzi-cluster-operator log for errors in last {} seconds", sinceSeconds);
-        String clusterOperatorLog = KUBE_CMD_CLIENT.searchInLog("deploy", "strimzi-cluster-operator", sinceSeconds, "Exception", "Error", "Throwable");
+        String clusterOperatorLog = cmdKubeClient().searchInLog("deploy", "strimzi-cluster-operator", sinceSeconds, "Exception", "Error", "Throwable");
         assertThat(clusterOperatorLog, logHasNoUnexpectedErrors());
     }
 
     public List<String> listTopicsUsingPodCLI(String clusterName, int zkPodId) {
         String podName = zookeeperPodName(clusterName, zkPodId);
         int port = 2181 * 10 + zkPodId;
-        return Arrays.asList(KUBE_CLIENT.execInPod(podName, "zookeeper", "/bin/bash", "-c",
+        return Arrays.asList(kubeClient().execInPod(podName, "zookeeper", "/bin/bash", "-c",
                 "bin/kafka-topics.sh --list --zookeeper localhost:" + port).split("\\s+"));
     }
 
     public String createTopicUsingPodCLI(String clusterName, int zkPodId, String topic, int replicationFactor, int partitions) {
         String podName = zookeeperPodName(clusterName, zkPodId);
         int port = 2181 * 10 + zkPodId;
-        return KUBE_CLIENT.execInPod(podName, "zookeeper", "/bin/bash", "-c",
+        return kubeClient().execInPod(podName, "zookeeper", "/bin/bash", "-c",
                 "bin/kafka-topics.sh --zookeeper localhost:" + port + " --create " + " --topic " + topic +
                         " --replication-factor " + replicationFactor + " --partitions " + partitions);
     }
@@ -391,27 +392,27 @@ public abstract class AbstractST extends BaseITST implements TestSeparator, Cons
     public String deleteTopicUsingPodCLI(String clusterName, int zkPodId, String topic) {
         String podName = zookeeperPodName(clusterName, zkPodId);
         int port = 2181 * 10 + zkPodId;
-        return KUBE_CLIENT.execInPod(podName, "zookeeper", "/bin/bash", "-c",
+        return kubeClient().execInPod(podName, "zookeeper", "/bin/bash", "-c",
                 "bin/kafka-topics.sh --zookeeper localhost:" + port + " --delete --topic " + topic);
     }
 
     public List<String>  describeTopicUsingPodCLI(String clusterName, int zkPodId, String topic) {
         String podName = zookeeperPodName(clusterName, zkPodId);
         int port = 2181 * 10 + zkPodId;
-        return Arrays.asList(KUBE_CLIENT.execInPod(podName, "zookeeper", "/bin/bash", "-c",
+        return Arrays.asList(kubeClient().execInPod(podName, "zookeeper", "/bin/bash", "-c",
                 "bin/kafka-topics.sh --zookeeper localhost:" + port + " --describe --topic " + topic).split("\\s+"));
     }
 
     public String updateTopicPartitionsCountUsingPodCLI(String clusterName, int zkPodId, String topic, int partitions) {
         String podName = zookeeperPodName(clusterName, zkPodId);
         int port = 2181 * 10 + zkPodId;
-        return KUBE_CLIENT.execInPod(podName, "zookeeper", "/bin/bash", "-c",
+        return kubeClient().execInPod(podName, "zookeeper", "/bin/bash", "-c",
                 "bin/kafka-topics.sh --zookeeper localhost:" + port + " --alter --topic " + topic + " --partitions " + partitions);
     }
 
     public Map<String, String> getImagesFromConfig() {
         Map<String, String> images = new HashMap<>();
-        for (Container c : KUBE_CLIENT.getDeployment("strimzi-cluster-operator").getSpec().getTemplate().getSpec().getContainers()) {
+        for (Container c : kubeClient().getDeployment("strimzi-cluster-operator").getSpec().getTemplate().getSpec().getContainers()) {
             for (EnvVar envVar : c.getEnv()) {
                 images.put(envVar.getName(), envVar.getValue());
             }
@@ -420,28 +421,28 @@ public abstract class AbstractST extends BaseITST implements TestSeparator, Cons
     }
 
     public String getContainerImageNameFromPod(String podName) {
-        return KUBE_CLIENT.getPod(podName).getSpec().getContainers().get(0).getImage();
+        return kubeClient().getPod(podName).getSpec().getContainers().get(0).getImage();
     }
 
     public String getContainerImageNameFromPod(String podName, String containerName) {
-        return KUBE_CLIENT.getPod(podName).getSpec().getContainers().stream()
+        return kubeClient().getPod(podName).getSpec().getContainers().stream()
                 .filter(c -> c.getName().equals(containerName))
                 .findFirst().get().getImage();
     }
 
     public String  getInitContainerImageName(String podName) {
-        return KUBE_CLIENT.getPod(podName).getSpec().getInitContainers().stream()
+        return kubeClient().getPod(podName).getSpec().getInitContainers().stream()
                 .findFirst().get().getImage();
     }
 
     protected void createResources() {
         LOGGER.info("Creating resources before the test");
-        resources = new Resources();
+        resources = new Resources(kubeClient());
     }
 
     protected static void createTestClassResources() {
         LOGGER.info("Creating test class resources");
-        testClassResources = new Resources();
+        testClassResources = new Resources(kubeClient());
     }
 
     protected void deleteResources() throws Exception {
@@ -459,7 +460,7 @@ public abstract class AbstractST extends BaseITST implements TestSeparator, Cons
     }
 
     String podNameWithLabels(Map<String, String> labels) {
-        List<Pod> pods = KUBE_CLIENT.listPods();
+        List<Pod> pods = kubeClient().listPods();
         if (pods.size() != 1) {
             fail("There are " + pods.size() +  " pods with labels " + labels);
         }
@@ -467,7 +468,7 @@ public abstract class AbstractST extends BaseITST implements TestSeparator, Cons
     }
 
     String saslConfigs(KafkaUser kafkaUser) {
-        Secret secret = KUBE_CLIENT.getSecret(kafkaUser.getMetadata().getName());
+        Secret secret = kubeClient().getSecret(kafkaUser.getMetadata().getName());
 
         String password = new String(Base64.getDecoder().decode(secret.getData().get("password")));
         if (password == null) {
@@ -486,7 +487,7 @@ public abstract class AbstractST extends BaseITST implements TestSeparator, Cons
 
     void waitTillSecretExists(String secretName) {
         waitFor("secret " + secretName + " exists", GLOBAL_POLL_INTERVAL, GLOBAL_TIMEOUT,
-            () -> KUBE_CLIENT.getSecret(secretName) != null);
+            () -> kubeClient().getSecret(secretName) != null);
         try {
             Thread.sleep(60000L);
         } catch (InterruptedException e) {
@@ -503,12 +504,12 @@ public abstract class AbstractST extends BaseITST implements TestSeparator, Cons
     void waitForDeletion(long time, String namespace) throws Exception {
         LOGGER.info("Wait for {} ms after cleanup to make sure everything is deleted", time);
         Thread.sleep(time);
-        long podCount = KUBE_CLIENT.listPods().stream().filter(
+        long podCount = kubeClient().listPods().stream().filter(
             p -> !p.getMetadata().getName().startsWith(CLUSTER_OPERATOR_PREFIX)).count();
 
         StringBuilder nonTerminated = new StringBuilder();
         if (podCount > 0) {
-            List<Pod> pods = KUBE_CLIENT.listPods().stream().filter(
+            List<Pod> pods = kubeClient().listPods().stream().filter(
                 p -> !p.getMetadata().getName().startsWith(CLUSTER_OPERATOR_PREFIX)).collect(Collectors.toList());
             pods.forEach(
                 p -> nonTerminated.append("\n").append(p.getMetadata().getName()).append(" - ").append(p.getStatus().getPhase())
@@ -531,7 +532,7 @@ public abstract class AbstractST extends BaseITST implements TestSeparator, Cons
         createNamespaces(coNamespace, bindingsNamespaces);
         applyClusterOperatorInstallFiles();
 
-        testClassResources = new Resources();
+        testClassResources = new Resources(kubeClient());
 
         applyRoleBindings(coNamespace, bindingsNamespaces);
         // 050-Deployment
@@ -595,12 +596,12 @@ public abstract class AbstractST extends BaseITST implements TestSeparator, Cons
 
         LOGGER.info("Creating cluster operator with Helm Chart before test class {}", testClass);
         Path pathToChart = new File(HELM_CHART).toPath();
-        String oldNamespace = KUBE_CMD_CLIENT.namespace("kube-system");
+        String oldNamespace = setNamespace("kube-system");
         InputStream helmAccountAsStream = getClass().getClassLoader().getResourceAsStream("helm/helm-service-account.yaml");
         String helmServiceAccount = TestUtils.readResource(helmAccountAsStream);
-        KUBE_CMD_CLIENT.applyContent(helmServiceAccount);
+        cmdKubeClient().applyContent(helmServiceAccount);
         helmClient().init();
-        KUBE_CMD_CLIENT.namespace(oldNamespace);
+        setNamespace(oldNamespace);
         helmClient().install(pathToChart, HELM_RELEASE_NAME, values);
     }
 

@@ -52,7 +52,7 @@ public class StrimziUpgradeST extends AbstractST {
     @ParameterizedTest
     @CsvFileSource(resources = "/StrimziUpgradeST.csv")
     void upgradeStrimziVersion(String fromVersion, String toVersion, String urlFrom, String urlTo, String images, String procedures) throws IOException {
-        KUBE_CMD_CLIENT.namespace(NAMESPACE);
+        setNamespace(NAMESPACE);
         File coDir = null;
         File kafkaEphemeralYaml = null;
         File kafkaTopicYaml = null;
@@ -71,19 +71,19 @@ public class StrimziUpgradeST extends AbstractST {
 
             // Deploy a Kafka cluster
             kafkaEphemeralYaml = new File(dir, "strimzi-" + fromVersion + "/examples/kafka/kafka-ephemeral.yaml");
-            KUBE_CMD_CLIENT.create(kafkaEphemeralYaml);
+            cmdKubeClient().create(kafkaEphemeralYaml);
             // Wait for readiness
             waitForClusterReadiness();
 
             // And a topic and a user
             kafkaTopicYaml = new File(dir, "strimzi-" + fromVersion + "/examples/topic/kafka-topic.yaml");
-            KUBE_CMD_CLIENT.create(kafkaTopicYaml);
+            cmdKubeClient().create(kafkaTopicYaml);
             kafkaUserYaml = new File(dir, "strimzi-" + fromVersion + "/examples/user/kafka-user.yaml");
-            KUBE_CMD_CLIENT.create(kafkaUserYaml);
+            cmdKubeClient().create(kafkaUserYaml);
 
             makeSnapshots();
 
-            List<Pod> pods = KUBE_CLIENT.listPods(KUBE_CLIENT.getStatefulSetSelectors(zkSsName));
+            List<Pod> pods = kubeClient().listPods(kubeClient().getStatefulSetSelectors(zkSsName));
             for (Pod pod : pods) {
                 LOGGER.info("Pod {} has image {}", pod.getMetadata().getName(), pod.getSpec().getContainers().get(0).getImage());
             }
@@ -147,10 +147,10 @@ public class StrimziUpgradeST extends AbstractST {
             // Tidy up
         } catch (KubeClusterException e) {
             if (kafkaEphemeralYaml != null) {
-                KUBE_CMD_CLIENT.delete(kafkaEphemeralYaml);
+                cmdKubeClient().delete(kafkaEphemeralYaml);
             }
             if (coDir != null) {
-                KUBE_CMD_CLIENT.delete(coDir);
+                cmdKubeClient().delete(coDir);
             }
             throw e;
         } finally {
@@ -162,11 +162,11 @@ public class StrimziUpgradeST extends AbstractST {
     private void copyModifyApply(File root) {
         Arrays.stream(Objects.requireNonNull(root.listFiles())).sorted().forEach(f -> {
             if (f.getName().matches(".*RoleBinding.*")) {
-                KUBE_CMD_CLIENT.applyContent(TestUtils.changeRoleBindingSubject(f, NAMESPACE));
+                cmdKubeClient().applyContent(TestUtils.changeRoleBindingSubject(f, NAMESPACE));
             } else if (f.getName().matches("050-Deployment.*")) {
-                KUBE_CMD_CLIENT.applyContent(TestUtils.changeDeploymentNamespaceUpgrade(f, NAMESPACE));
+                cmdKubeClient().applyContent(TestUtils.changeDeploymentNamespaceUpgrade(f, NAMESPACE));
             } else {
-                KUBE_CMD_CLIENT.apply(f);
+                cmdKubeClient().apply(f);
             }
         });
     }
@@ -174,9 +174,9 @@ public class StrimziUpgradeST extends AbstractST {
     private void deleteInstalledYamls(File root) {
         Arrays.stream(Objects.requireNonNull(root.listFiles())).sorted().forEach(f -> {
             if (f.getName().matches(".*RoleBinding.*")) {
-                KUBE_CMD_CLIENT.deleteContent(TestUtils.changeRoleBindingSubject(f, NAMESPACE));
+                cmdKubeClient().deleteContent(TestUtils.changeRoleBindingSubject(f, NAMESPACE));
             } else {
-                KUBE_CMD_CLIENT.delete(f);
+                cmdKubeClient().delete(f);
             }
         });
     }
@@ -204,24 +204,24 @@ public class StrimziUpgradeST extends AbstractST {
         LOGGER.info("Waiting for ZK SS roll");
         StUtils.waitTillSsHasRolled(NAMESPACE, zkSsName, 3, zkPods);
         LOGGER.info("Checking ZK pods using new image");
-        waitTillAllPodsUseImage(KUBE_CLIENT.getStatefulSet(zkSsName).getSpec().getSelector().getMatchLabels(),
+        waitTillAllPodsUseImage(kubeClient().getStatefulSet(zkSsName).getSpec().getSelector().getMatchLabels(),
                 zkImage);
 
         LOGGER.info("Waiting for Kafka SS roll");
         StUtils.waitTillSsHasRolled(NAMESPACE, kafkaSsName, 3, kafkaPods);
         LOGGER.info("Checking Kafka pods using new image");
-        waitTillAllPodsUseImage(KUBE_CLIENT.getStatefulSet(kafkaSsName).getSpec().getSelector().getMatchLabels(),
+        waitTillAllPodsUseImage(kubeClient().getStatefulSet(kafkaSsName).getSpec().getSelector().getMatchLabels(),
                 kafkaImage);
         LOGGER.info("Waiting for EO Dep roll");
         // Check the TO and UO also got upgraded
         StUtils.waitTillDepHasRolled(NAMESPACE, eoDepName, 1, eoPods);
         LOGGER.info("Checking EO pod using new image");
         waitTillAllContainersUseImage(
-                KUBE_CLIENT.getDeployment(eoDepName).getSpec().getSelector().getMatchLabels(),
+                kubeClient().getDeployment(eoDepName).getSpec().getSelector().getMatchLabels(),
                 0,
                 tOImage);
         waitTillAllContainersUseImage(
-                KUBE_CLIENT.getDeployment(eoDepName).getSpec().getSelector().getMatchLabels(),
+                kubeClient().getDeployment(eoDepName).getSpec().getSelector().getMatchLabels(),
                 1,
                 uOImage);
     }
@@ -233,12 +233,12 @@ public class StrimziUpgradeST extends AbstractST {
     }
 
     private Kafka getKafka(String resourceName) {
-        Resource<Kafka, DoneableKafka> namedResource = Crds.kafkaV1Alpha1Operation(KUBE_CLIENT.getClient()).inNamespace(KUBE_CLIENT.getNamespace()).withName(resourceName);
+        Resource<Kafka, DoneableKafka> namedResource = Crds.kafkaV1Alpha1Operation(kubeClient().getClient()).inNamespace(kubeClient().getNamespace()).withName(resourceName);
         return namedResource.get();
     }
 
     private void replaceKafka(String resourceName, Consumer<Kafka> editor) {
-        Resource<Kafka, DoneableKafka> namedResource = Crds.kafkaV1Alpha1Operation(KUBE_CLIENT.getClient()).inNamespace(KUBE_CLIENT.getNamespace()).withName(resourceName);
+        Resource<Kafka, DoneableKafka> namedResource = Crds.kafkaV1Alpha1Operation(kubeClient().getClient()).inNamespace(kubeClient().getNamespace()).withName(resourceName);
         Kafka kafka = getKafka(resourceName);
         editor.accept(kafka);
         namedResource.replace(kafka);
@@ -250,7 +250,7 @@ public class StrimziUpgradeST extends AbstractST {
 
     private void waitTillAllContainersUseImage(Map<String, String> matchLabels, int container, String image) {
         TestUtils.waitFor("All pods matching " + matchLabels + " to have image " + image, GLOBAL_POLL_INTERVAL, GLOBAL_TIMEOUT, () -> {
-            List<Pod> pods1 = KUBE_CLIENT.listPods(matchLabels);
+            List<Pod> pods1 = kubeClient().listPods(matchLabels);
             for (Pod pod : pods1) {
                 if (!image.equals(pod.getSpec().getContainers().get(container).getImage())) {
                     LOGGER.info("Expected image: {} \nCurrent image: {}", image, pod.getSpec().getContainers().get(container).getImage());

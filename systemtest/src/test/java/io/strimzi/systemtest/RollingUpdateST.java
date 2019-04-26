@@ -65,7 +65,7 @@ class RollingUpdateST extends AbstractST {
         StUtils.waitForPod(firstZkPodName);
 
         TestUtils.waitFor("Wait till rolling update timeout", CO_OPERATION_TIMEOUT_POLL, CO_OPERATION_TIMEOUT_WAIT,
-            () -> !KUBE_CMD_CLIENT.searchInLog("deploy", "strimzi-cluster-operator", TimeMeasuringSystem.getCurrentDuration(testClass, testName, operationID), logZkPattern).isEmpty());
+            () -> !cmdKubeClient().searchInLog("deploy", "strimzi-cluster-operator", TimeMeasuringSystem.getCurrentDuration(testClass, testName, operationID), logZkPattern).isEmpty());
 
         assertThatRollingUpdatedFinished(KafkaResources.zookeeperStatefulSetName(CLUSTER_NAME), KafkaResources.kafkaStatefulSetName(CLUSTER_NAME));
 
@@ -73,7 +73,7 @@ class RollingUpdateST extends AbstractST {
 
         LOGGER.info("Wait till another rolling update starts");
         TestUtils.waitFor("Wait till another rolling update starts", CO_OPERATION_TIMEOUT_POLL, CO_OPERATION_TIMEOUT,
-            () -> !KUBE_CMD_CLIENT.searchInLog("deploy", "strimzi-cluster-operator", TimeMeasuringSystem.getCurrentDuration(testClass, testName, reconciliation), RECONCILIATION_PATTERN).isEmpty());
+            () -> !cmdKubeClient().searchInLog("deploy", "strimzi-cluster-operator", TimeMeasuringSystem.getCurrentDuration(testClass, testName, reconciliation), RECONCILIATION_PATTERN).isEmpty());
 
         TimeMeasuringSystem.stopOperation(reconciliation);
 
@@ -83,7 +83,7 @@ class RollingUpdateST extends AbstractST {
         LOGGER.info(TimeMeasuringSystem.getCurrentDuration(testClass, testName, rollingUpdateOperation));
 
         TestUtils.waitFor("Wait till rolling update timeout", CO_OPERATION_TIMEOUT_POLL, CO_OPERATION_TIMEOUT_WAIT,
-            () -> !KUBE_CMD_CLIENT.searchInLog("deploy", "strimzi-cluster-operator", TimeMeasuringSystem.getCurrentDuration(testClass, testName, rollingUpdateOperation), logZkPattern).isEmpty());
+            () -> !cmdKubeClient().searchInLog("deploy", "strimzi-cluster-operator", TimeMeasuringSystem.getCurrentDuration(testClass, testName, rollingUpdateOperation), logZkPattern).isEmpty());
 
         assertThatRollingUpdatedFinished(KafkaResources.zookeeperStatefulSetName(CLUSTER_NAME), KafkaResources.kafkaStatefulSetName(CLUSTER_NAME));
 
@@ -116,7 +116,7 @@ class RollingUpdateST extends AbstractST {
         StUtils.waitForPod(firstKafkaPodName);
 
         TestUtils.waitFor("Wait till rolling update timeouted", CO_OPERATION_TIMEOUT_POLL, CO_OPERATION_TIMEOUT_WAIT,
-            () -> !KUBE_CMD_CLIENT.searchInLog("deploy", "strimzi-cluster-operator", TimeMeasuringSystem.getCurrentDuration(testClass, testName, operationID), logKafkaPattern).isEmpty());
+            () -> !cmdKubeClient().searchInLog("deploy", "strimzi-cluster-operator", TimeMeasuringSystem.getCurrentDuration(testClass, testName, operationID), logKafkaPattern).isEmpty());
 
         assertThatRollingUpdatedFinished(KafkaResources.kafkaStatefulSetName(CLUSTER_NAME), KafkaResources.zookeeperStatefulSetName(CLUSTER_NAME));
 
@@ -124,7 +124,7 @@ class RollingUpdateST extends AbstractST {
 
         LOGGER.info("Wait till another rolling update starts");
         TestUtils.waitFor("Wait till another rolling update starts", CO_OPERATION_TIMEOUT_POLL, CO_OPERATION_TIMEOUT,
-            () -> !KUBE_CMD_CLIENT.searchInLog("deploy", "strimzi-cluster-operator", TimeMeasuringSystem.getCurrentDuration(testClass, testName, reconciliation), RECONCILIATION_PATTERN).isEmpty());
+            () -> !cmdKubeClient().searchInLog("deploy", "strimzi-cluster-operator", TimeMeasuringSystem.getCurrentDuration(testClass, testName, reconciliation), RECONCILIATION_PATTERN).isEmpty());
 
         TimeMeasuringSystem.stopOperation(reconciliation);
 
@@ -134,7 +134,7 @@ class RollingUpdateST extends AbstractST {
         LOGGER.info(TimeMeasuringSystem.getCurrentDuration(testClass, testName, rollingUpdateOperation));
 
         TestUtils.waitFor("Wait till rolling update timedout", CO_OPERATION_TIMEOUT_POLL, CO_OPERATION_TIMEOUT_WAIT,
-            () -> !KUBE_CMD_CLIENT.searchInLog("deploy", "strimzi-cluster-operator", TimeMeasuringSystem.getCurrentDuration(testClass, testName, rollingUpdateOperation), logKafkaPattern).isEmpty());
+            () -> !cmdKubeClient().searchInLog("deploy", "strimzi-cluster-operator", TimeMeasuringSystem.getCurrentDuration(testClass, testName, rollingUpdateOperation), logKafkaPattern).isEmpty());
 
         assertThatRollingUpdatedFinished(KafkaResources.kafkaStatefulSetName(CLUSTER_NAME), KafkaResources.zookeeperStatefulSetName(CLUSTER_NAME));
 
@@ -143,7 +143,7 @@ class RollingUpdateST extends AbstractST {
     }
 
     void assertThatRollingUpdatedFinished(String rolledComponent, String stableComponent) {
-        List<String> podStatuses = KUBE_CLIENT.listPods().stream()
+        List<String> podStatuses = kubeClient().listPods().stream()
                 .filter(p -> p.getMetadata().getName().startsWith(rolledComponent))
                 .map(p -> p.getStatus().getPhase()).sorted().collect(Collectors.toList());
 
@@ -155,7 +155,7 @@ class RollingUpdateST extends AbstractST {
         assertThat("", statusCount.get("Pending"), is(1L));
         assertThat("", statusCount.get("Running"), is(Integer.toUnsignedLong(podStatuses.size() - 1)));
 
-        podStatuses = KUBE_CLIENT.listPods().stream()
+        podStatuses = kubeClient().listPods().stream()
                 .filter(p -> p.getMetadata().getName().startsWith(stableComponent))
                 .map(p -> p.getStatus().getPhase()).sorted().collect(Collectors.toList());
 

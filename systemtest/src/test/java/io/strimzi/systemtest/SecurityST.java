@@ -69,7 +69,7 @@ class SecurityST extends AbstractST {
                 " -verify_hostname my-cluster-kafka-bootstrap";
 
         String outputForKafkaBootstrap =
-                KUBE_CLIENT.execInPod(kafkaPodName(CLUSTER_NAME, 0), "kafka",
+                kubeClient().execInPod(kafkaPodName(CLUSTER_NAME, 0), "kafka",
                         "/bin/bash", "-c", commandForKafkaBootstrap);
         checkKafkaCertificates(outputForKafkaBootstrap);
 
@@ -79,7 +79,7 @@ class SecurityST extends AbstractST {
                 " -cert /opt/kafka/broker-certs/my-cluster-kafka-0.crt" +
                 " -key /opt/kafka/broker-certs/my-cluster-kafka-0.key";
         String outputForZookeeperClient =
-                KUBE_CLIENT.execInPod(kafkaPodName(CLUSTER_NAME, 0), "kafka",
+                kubeClient().execInPod(kafkaPodName(CLUSTER_NAME, 0), "kafka",
                         "/bin/bash", "-c", commandForZookeeperClient);
         checkZookeeperCertificates(outputForZookeeperClient);
 
@@ -88,9 +88,9 @@ class SecurityST extends AbstractST {
             String commandForKafkaPort9093 = "echo -n | " + generateOpenSSLCommandWithCAfile(kafkaPodName(CLUSTER_NAME, podId), "my-cluster-kafka-brokers", "9093");
 
             String outputForKafkaPort9091 =
-                    KUBE_CLIENT.execInPod(kafkaPodName(CLUSTER_NAME, podId), "kafka", "/bin/bash", "-c", commandForKafkaPort9091);
+                    kubeClient().execInPod(kafkaPodName(CLUSTER_NAME, podId), "kafka", "/bin/bash", "-c", commandForKafkaPort9091);
             String outputForKafkaPort9093 =
-                    KUBE_CLIENT.execInPod(kafkaPodName(CLUSTER_NAME, podId), "kafka", "/bin/bash", "-c", commandForKafkaPort9093);
+                    kubeClient().execInPod(kafkaPodName(CLUSTER_NAME, podId), "kafka", "/bin/bash", "-c", commandForKafkaPort9093);
 
             checkKafkaCertificates(outputForKafkaPort9091, outputForKafkaPort9093);
 
@@ -99,17 +99,17 @@ class SecurityST extends AbstractST {
             String commandForZookeeperPort3888 = "echo -n | " + generateOpenSSLCommandWithCerts(zookeeperPodName(CLUSTER_NAME, podId), "my-cluster-zookeeper-nodes", "3888");
 
             String outputForZookeeperPort2181 =
-                    KUBE_CLIENT.execInPod(kafkaPodName(CLUSTER_NAME, podId), "kafka", "/bin/bash", "-c",
+                    kubeClient().execInPod(kafkaPodName(CLUSTER_NAME, podId), "kafka", "/bin/bash", "-c",
                             commandForZookeeperPort2181);
 
             String outputForZookeeperPort3888 =
-                    KUBE_CLIENT.execInPod(kafkaPodName(CLUSTER_NAME, podId), "kafka", "/bin/bash", "-c",
+                    kubeClient().execInPod(kafkaPodName(CLUSTER_NAME, podId), "kafka", "/bin/bash", "-c",
                             commandForZookeeperPort3888);
             checkZookeeperCertificates(outputForZookeeperPort2181, outputForZookeeperPort3888);
 
             try {
                 String outputForZookeeperPort2888 =
-                        KUBE_CLIENT.execInPod(kafkaPodName(CLUSTER_NAME, podId), "kafka", "/bin/bash", "-c",
+                        kubeClient().execInPod(kafkaPodName(CLUSTER_NAME, podId), "kafka", "/bin/bash", "-c",
                                 commandForZookeeperPort2888);
                 checkZookeeperCertificates(outputForZookeeperPort2888);
             } catch (KubeClusterException e) {
@@ -171,8 +171,8 @@ class SecurityST extends AbstractST {
         createClusterWithExternalRoute();
         String userName = "alice";
         resources().tlsUser(CLUSTER_NAME, userName).done();
-        waitFor("", GLOBAL_POLL_INTERVAL, TIMEOUT_FOR_GET_SECRETS, () -> KUBE_CLIENT.getSecret("alice") != null,
-            () -> LOGGER.error("Couldn't find user secret {}", KUBE_CLIENT.listSecrets()));
+        waitFor("", GLOBAL_POLL_INTERVAL, TIMEOUT_FOR_GET_SECRETS, () -> kubeClient().getSecret("alice") != null,
+            () -> LOGGER.error("Couldn't find user secret {}", kubeClient().listSecrets()));
 
         waitForClusterAvailabilityTls(userName, NAMESPACE);
 
@@ -185,7 +185,7 @@ class SecurityST extends AbstractST {
         List<String> secrets = asList(clusterCaCertificateSecretName(CLUSTER_NAME),
                 clientsCaCertificateSecretName(CLUSTER_NAME));
         for (String secretName : secrets) {
-            Secret secret = KUBE_CLIENT.getSecret(secretName);
+            Secret secret = kubeClient().getSecret(secretName);
             String value = secret.getData().get("ca.crt");
             assertNotNull("ca.crt in " + secretName + " should not be null", value);
             initialCaCerts.put(secretName, value);
@@ -195,7 +195,7 @@ class SecurityST extends AbstractST {
                     .endMetadata()
                 .build();
             LOGGER.info("Patching secret {} with {}", secretName, STRIMZI_IO_FORCE_RENEW);
-            KUBE_CLIENT.patchSecret(secretName, annotated);
+            kubeClient().patchSecret(secretName, annotated);
         }
 
         Map<String, String> eoPod = StUtils.depSnapshot(NAMESPACE, KafkaResources.entityOperatorDeploymentName(CLUSTER_NAME));
@@ -209,7 +209,7 @@ class SecurityST extends AbstractST {
 
         LOGGER.info("Checking the certificates have been replaced");
         for (String secretName : secrets) {
-            Secret secret = KUBE_CLIENT.getSecret(secretName);
+            Secret secret = kubeClient().getSecret(secretName);
             assertNotNull(secret, "Secret " + secretName + " should exist");
             assertNotNull(secret.getData(), "CA cert in " + secretName + " should have non-null 'data'");
             String value = secret.getData().get("ca.crt");
@@ -223,10 +223,10 @@ class SecurityST extends AbstractST {
         String bobUserName = "bob";
         resources().tlsUser(CLUSTER_NAME, bobUserName).done();
         waitFor("", GLOBAL_POLL_INTERVAL, TIMEOUT_FOR_GET_SECRETS, () -> {
-            return KUBE_CLIENT.getSecret(bobUserName) != null;
+            return kubeClient().getSecret(bobUserName) != null;
         },
             () -> {
-                LOGGER.error("Couldn't find user secret {}", KUBE_CLIENT.listSecrets());
+                LOGGER.error("Couldn't find user secret {}", kubeClient().listSecrets());
             });
 
         waitForClusterAvailabilityTls(bobUserName, NAMESPACE);
@@ -240,8 +240,8 @@ class SecurityST extends AbstractST {
         String aliceUserName = "alice";
         resources().tlsUser(CLUSTER_NAME, aliceUserName).done();
         waitFor("Alic's secret to exist", GLOBAL_POLL_INTERVAL, TIMEOUT_FOR_GET_SECRETS,
-            () -> KUBE_CLIENT.getSecret(aliceUserName) != null,
-            () -> LOGGER.error("Couldn't find user secret {}", KUBE_CLIENT.listSecrets()));
+            () -> kubeClient().getSecret(aliceUserName) != null,
+            () -> LOGGER.error("Couldn't find user secret {}", kubeClient().listSecrets()));
 
         waitForClusterAvailabilityTls(aliceUserName, NAMESPACE);
 
@@ -255,7 +255,7 @@ class SecurityST extends AbstractST {
         List<String> secrets = asList(clusterCaKeySecretName(CLUSTER_NAME),
                 clientsCaKeySecretName(CLUSTER_NAME));
         for (String secretName : secrets) {
-            Secret secret = KUBE_CLIENT.getSecret(secretName);
+            Secret secret = kubeClient().getSecret(secretName);
             String value = secret.getData().get("ca.key");
             assertNotNull("ca.key in " + secretName + " should not be null", value);
             initialCaKeys.put(secretName, value);
@@ -265,7 +265,7 @@ class SecurityST extends AbstractST {
                     .endMetadata()
                     .build();
             LOGGER.info("Patching secret {} with {}", secretName, STRIMZI_IO_FORCE_REPLACE);
-            KUBE_CLIENT.patchSecret(secretName, annotated);
+            kubeClient().patchSecret(secretName, annotated);
         }
 
         LOGGER.info("Wait for zk to rolling restart (1)...");
@@ -284,7 +284,7 @@ class SecurityST extends AbstractST {
 
         LOGGER.info("Checking the certificates have been replaced");
         for (String secretName : secrets) {
-            Secret secret = KUBE_CLIENT.getSecret(secretName);
+            Secret secret = kubeClient().getSecret(secretName);
             assertNotNull(secret, "Secret " + secretName + " should exist");
             assertNotNull(secret.getData(), "CA key in " + secretName + " should have non-null 'data'");
             String value = secret.getData().get("ca.key");
@@ -299,8 +299,8 @@ class SecurityST extends AbstractST {
         String bobUserName = "bob";
         resources().tlsUser(CLUSTER_NAME, bobUserName).done();
         waitFor("Bob's secret to exist", GLOBAL_POLL_INTERVAL, TIMEOUT_FOR_GET_SECRETS,
-            () -> KUBE_CLIENT.getSecret(bobUserName) != null,
-            () -> LOGGER.error("Couldn't find user secret {}", KUBE_CLIENT.listSecrets()));
+            () -> kubeClient().getSecret(bobUserName) != null,
+            () -> LOGGER.error("Couldn't find user secret {}", kubeClient().listSecrets()));
 
         waitForClusterAvailabilityTls(bobUserName, NAMESPACE);
     }
@@ -399,7 +399,7 @@ class SecurityST extends AbstractST {
 
     private void waitForCertToChange(String originalCert, String secretName) {
         waitFor("Cert to be replaced", GLOBAL_POLL_INTERVAL, TIMEOUT_FOR_CLUSTER_STABLE, () -> {
-            Secret secret = KUBE_CLIENT.getSecret(secretName);
+            Secret secret = kubeClient().getSecret(secretName);
             if (secret != null && secret.getData() != null && secret.getData().containsKey("ca.crt")) {
                 String currentCert = new String(Base64.getDecoder().decode(secret.getData().get("ca.crt")), StandardCharsets.US_ASCII);
                 boolean changed = !originalCert.equals(currentCert);
@@ -424,7 +424,7 @@ class SecurityST extends AbstractST {
                 .endMetadata()
                 .withData(singletonMap(keyName, Base64.getEncoder().encodeToString(certAsString.getBytes(StandardCharsets.US_ASCII))))
             .build();
-        KUBE_CLIENT.createSecret(secret);
+        kubeClient().createSecret(secret);
         return certAsString;
     }
 

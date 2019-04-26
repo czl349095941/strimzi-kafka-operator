@@ -55,11 +55,12 @@ import io.strimzi.api.kafka.model.KafkaTopic;
 import io.strimzi.api.kafka.model.KafkaTopicBuilder;
 import io.strimzi.api.kafka.model.KafkaUser;
 import io.strimzi.api.kafka.model.KafkaUserBuilder;
-import io.strimzi.api.kafka.model.SingleVolumeStorage;
 import io.strimzi.api.kafka.model.KafkaUserScramSha512ClientAuthentication;
 import io.strimzi.api.kafka.model.KafkaUserTlsClientAuthentication;
+import io.strimzi.api.kafka.model.SingleVolumeStorage;
 import io.strimzi.systemtest.utils.StUtils;
 import io.strimzi.test.TestUtils;
+import io.strimzi.test.k8s.Kubernetes;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -92,6 +93,10 @@ public class Resources extends AbstractResources implements Constants {
     private static final String CLUSTER_ROLE_BINDING = "ClusterRoleBinding";
 
     private List<Runnable> resources = new ArrayList<>();
+
+    Resources(Kubernetes client) {
+        super(client);
+    }
 
     private <T extends HasMetadata> T deleteLater(MixedOperation<T, ?, ?, ?> x, T resource) {
         LOGGER.info("Scheduled deletion of {} {}", resource.getKind(), resource.getMetadata().getName());
@@ -128,7 +133,7 @@ public class Resources extends AbstractResources implements Constants {
                 resources.add(() -> {
                     LOGGER.info("Deleting {} {}", resource.getKind(), resource.getMetadata().getName());
                     x.delete(resource);
-                    KUBE_CLIENT.deleteDeployment((Deployment) resource);
+                    client().deleteDeployment((Deployment) resource);
                     waitForDeletion((Deployment) resource);
                 });
                 break;
@@ -136,21 +141,21 @@ public class Resources extends AbstractResources implements Constants {
                 resources.add(() -> {
                     LOGGER.info("Deleting {} {}", resource.getKind(), resource.getMetadata().getName());
                     x.delete(resource);
-                    KUBE_CLIENT.deleteKubernetesClusterRoleBinding((KubernetesClusterRoleBinding) resource);
+                    client().deleteKubernetesClusterRoleBinding((KubernetesClusterRoleBinding) resource);
                 });
                 break;
             case SERVICE:
                 resources.add(() -> {
                     LOGGER.info("Deleting {} {}", resource.getKind(), resource.getMetadata().getName());
                     x.delete(resource);
-                    KUBE_CLIENT.deleteService((Service) resource);
+                    client().deleteService((Service) resource);
                 });
                 break;
             case INGRESS:
                 resources.add(() -> {
                     LOGGER.info("Deleting {} {}", resource.getKind(), resource.getMetadata().getName());
                     x.delete(resource);
-                    KUBE_CLIENT.deleteIngress((Ingress) resource);
+                    client().deleteIngress((Ingress) resource);
                 });
             default :
                 resources.add(() -> {
@@ -241,7 +246,7 @@ public class Resources extends AbstractResources implements Constants {
         String uOImage = TestUtils.changeOrgAndTag(getImageValueFromCO("STRIMZI_DEFAULT_USER_OPERATOR_IMAGE"));
 
         return new KafkaBuilder()
-                    .withMetadata(new ObjectMetaBuilder().withName(name).withNamespace(KUBE_CLIENT.getNamespace()).build())
+                    .withMetadata(new ObjectMetaBuilder().withName(name).withNamespace(client().getNamespace()).build())
                     .withNewSpec()
                         .withNewKafka()
                             .withVersion(KAFKA_VERSION)
@@ -299,7 +304,7 @@ public class Resources extends AbstractResources implements Constants {
             TestUtils.waitFor("Kafka creation", POLL_INTERVAL_FOR_RESOURCE_CREATION, TIMEOUT_FOR_RESOURCE_READINESS,
                 () -> {
                     try {
-                        kafka().inNamespace(KUBE_CLIENT.getNamespace()).createOrReplace(k);
+                        kafka().inNamespace(client().getNamespace()).createOrReplace(k);
                         return true;
                     } catch (KubernetesClientException e) {
                         if (e.getMessage().contains("object is being deleted")) {
@@ -321,7 +326,7 @@ public class Resources extends AbstractResources implements Constants {
 
     private KafkaConnectBuilder defaultKafkaConnect(String name, int kafkaConnectReplicas) {
         return new KafkaConnectBuilder()
-            .withMetadata(new ObjectMetaBuilder().withName(name).withNamespace(KUBE_CLIENT.getNamespace()).build())
+            .withMetadata(new ObjectMetaBuilder().withName(name).withNamespace(client().getNamespace()).build())
             .withNewSpec()
                 .withVersion(KAFKA_VERSION)
                 .withBootstrapServers(KafkaResources.plainBootstrapAddress(name))
@@ -337,7 +342,7 @@ public class Resources extends AbstractResources implements Constants {
             TestUtils.waitFor("KafkaConnect creation", POLL_INTERVAL_FOR_RESOURCE_CREATION, TIMEOUT_FOR_RESOURCE_CREATION,
                 () -> {
                     try {
-                        kafkaConnect().inNamespace(KUBE_CLIENT.getNamespace()).createOrReplace(kC);
+                        kafkaConnect().inNamespace(client().getNamespace()).createOrReplace(kC);
                         return true;
                     } catch (KubernetesClientException e) {
                         if (e.getMessage().contains("object is being deleted")) {
@@ -365,7 +370,7 @@ public class Resources extends AbstractResources implements Constants {
 
     private KafkaConnectS2IBuilder defaultKafkaConnectS2I(String name, int kafkaConnectS2IReplicas) {
         return new KafkaConnectS2IBuilder()
-            .withMetadata(new ObjectMetaBuilder().withName(name).withNamespace(KUBE_CLIENT.getNamespace()).build())
+            .withMetadata(new ObjectMetaBuilder().withName(name).withNamespace(client().getNamespace()).build())
             .withNewSpec()
                 .withVersion(KAFKA_VERSION)
                 .withBootstrapServers(KafkaResources.plainBootstrapAddress(name))
@@ -378,7 +383,7 @@ public class Resources extends AbstractResources implements Constants {
             TestUtils.waitFor("KafkaConnectS2I creation", POLL_INTERVAL_FOR_RESOURCE_CREATION, TIMEOUT_FOR_RESOURCE_READINESS,
                 () -> {
                     try {
-                        kafkaConnectS2I().inNamespace(KUBE_CLIENT.getNamespace()).createOrReplace(kCS2I);
+                        kafkaConnectS2I().inNamespace(client().getNamespace()).createOrReplace(kCS2I);
                         return true;
                     } catch (KubernetesClientException e) {
                         if (e.getMessage().contains("object is being deleted")) {
@@ -400,7 +405,7 @@ public class Resources extends AbstractResources implements Constants {
 
     private KafkaMirrorMakerBuilder defaultMirrorMaker(String name, String sourceBootstrapServer, String targetBootstrapServer, String groupId, int mirrorMakerReplicas, boolean tlsListener) {
         return new KafkaMirrorMakerBuilder()
-            .withMetadata(new ObjectMetaBuilder().withName(name).withNamespace(KUBE_CLIENT.getNamespace()).build())
+            .withMetadata(new ObjectMetaBuilder().withName(name).withNamespace(client().getNamespace()).build())
             .withNewSpec()
                 .withVersion(KAFKA_VERSION)
                 .withNewConsumer()
@@ -423,7 +428,7 @@ public class Resources extends AbstractResources implements Constants {
             TestUtils.waitFor("Kafka Mirror Maker creation", POLL_INTERVAL_FOR_RESOURCE_CREATION, TIMEOUT_FOR_RESOURCE_CREATION,
                 () -> {
                     try {
-                        kafkaMirrorMaker().inNamespace(KUBE_CLIENT.getNamespace()).createOrReplace(k);
+                        kafkaMirrorMaker().inNamespace(client().getNamespace()).createOrReplace(k);
                         return true;
                     } catch (KubernetesClientException e) {
                         if (e.getMessage().contains("object is being deleted")) {
@@ -474,7 +479,7 @@ public class Resources extends AbstractResources implements Constants {
 
     private Deployment waitFor(Deployment deployment) {
         LOGGER.info("Waiting for deployment {}", deployment.getMetadata().getName());
-        String namespace = KUBE_CLIENT.getNamespace();
+        String namespace = client().getNamespace();
         StUtils.waitForDeploymentReady(namespace, deployment.getMetadata().getName());
         return deployment;
     }
@@ -501,7 +506,7 @@ public class Resources extends AbstractResources implements Constants {
         LOGGER.info("Waiting when all the pods are terminated for Kafka Connect {}", kafkaConnect.getMetadata().getName());
         String namespace = kafkaConnect.getMetadata().getNamespace();
 
-        KUBE_CLIENT.listPods().stream()
+        client().listPods().stream()
                 .filter(p -> p.getMetadata().getName().startsWith(kafkaConnect.getMetadata().getName() + "-connect-"))
                 .forEach(p -> waitForPodDeletion(namespace, p.getMetadata().getName()));
     }
@@ -510,7 +515,7 @@ public class Resources extends AbstractResources implements Constants {
         LOGGER.info("Waiting when all the pods are terminated for Kafka Connect S2I {}", kafkaConnectS2I.getMetadata().getName());
         String namespace = kafkaConnectS2I.getMetadata().getNamespace();
 
-        KUBE_CLIENT.listPods().stream()
+        client().listPods().stream()
                 .filter(p -> p.getMetadata().getName().startsWith(kafkaConnectS2I.getMetadata().getName() + "-connect-"))
                 .forEach(p -> waitForPodDeletion(namespace, p.getMetadata().getName()));
     }
@@ -519,7 +524,7 @@ public class Resources extends AbstractResources implements Constants {
         LOGGER.info("Waiting when all the pods are terminated for Kafka Mirror Maker {}", kafkaMirrorMaker.getMetadata().getName());
         String namespace = kafkaMirrorMaker.getMetadata().getNamespace();
 
-        KUBE_CLIENT.listPods().stream()
+        client().listPods().stream()
                 .filter(p -> p.getMetadata().getName().startsWith(kafkaMirrorMaker.getMetadata().getName() + "-mirror-maker-"))
                 .forEach(p -> waitForPodDeletion(namespace, p.getMetadata().getName()));
     }
@@ -528,7 +533,7 @@ public class Resources extends AbstractResources implements Constants {
         LOGGER.info("Waiting when all the pods are terminated for Deployment {}", deployment.getMetadata().getName());
         String namespace = deployment.getMetadata().getNamespace();
 
-        KUBE_CLIENT.listPods().stream()
+        client().listPods().stream()
                 .filter(p -> p.getMetadata().getName().startsWith(deployment.getMetadata().getName()))
                 .forEach(p -> waitForPodDeletion(namespace, p.getMetadata().getName()));
     }
@@ -537,7 +542,7 @@ public class Resources extends AbstractResources implements Constants {
         LOGGER.info("Waiting when Pod {} will be deleted", name);
 
         TestUtils.waitFor("statefulset " + name, POLL_INTERVAL_FOR_RESOURCE_READINESS, TIMEOUT_FOR_RESOURCE_READINESS,
-            () -> KUBE_CLIENT.getPod(name) == null);
+            () -> client().getPod(name) == null);
     }
 
     DoneableKafkaTopic topic(String clusterName, String topicName) {
@@ -549,7 +554,7 @@ public class Resources extends AbstractResources implements Constants {
                 .withMetadata(
                         new ObjectMetaBuilder()
                                 .withName(topicName)
-                                .withNamespace(KUBE_CLIENT.getNamespace())
+                                .withNamespace(client().getNamespace())
                                 .addToLabels("strimzi.io/cluster", clusterName)
                 .build())
                 .withNewSpec()
@@ -571,7 +576,7 @@ public class Resources extends AbstractResources implements Constants {
                 new ObjectMetaBuilder()
                         .withClusterName(clusterName)
                         .withName(name)
-                        .withNamespace(KUBE_CLIENT.getNamespace())
+                        .withNamespace(client().getNamespace())
                         .addToLabels("strimzi.io/cluster", clusterName)
                         .build())
                 .withNewSpec()
@@ -586,7 +591,7 @@ public class Resources extends AbstractResources implements Constants {
                 new ObjectMetaBuilder()
                         .withClusterName(clusterName)
                         .withName(name)
-                        .withNamespace(KUBE_CLIENT.getNamespace())
+                        .withNamespace(client().getNamespace())
                         .addToLabels("strimzi.io/cluster", clusterName)
                         .build())
                 .withNewSpec()
@@ -598,7 +603,7 @@ public class Resources extends AbstractResources implements Constants {
 
     DoneableKafkaUser user(KafkaUser user) {
         return new DoneableKafkaUser(user, ku -> {
-            KafkaUser resource = kafkaUser().inNamespace(KUBE_CLIENT.getNamespace()).createOrReplace(ku);
+            KafkaUser resource = kafkaUser().inNamespace(client().getNamespace()).createOrReplace(ku);
             LOGGER.info("Created KafkaUser {}", resource.getMetadata().getName());
             return deleteLater(resource);
         });
@@ -673,7 +678,7 @@ public class Resources extends AbstractResources implements Constants {
             TestUtils.waitFor("Deployment creation", POLL_INTERVAL_FOR_RESOURCE_CREATION, TIMEOUT_FOR_RESOURCE_CREATION,
                 () -> {
                     try {
-                        KUBE_CLIENT.createOrReplaceDeployment(co);
+                        client().createOrReplaceDeployment(co);
                         return true;
                     } catch (KubernetesClientException e) {
                         if (e.getMessage().contains("object is being deleted")) {
@@ -713,7 +718,7 @@ public class Resources extends AbstractResources implements Constants {
 
     private DoneableKubernetesRoleBinding kubernetesRoleBinding(KubernetesRoleBinding roleBinding, String clientNamespace) {
         LOGGER.info("Apply RoleBinding in namespace {}", clientNamespace);
-        KUBE_CLIENT.createOrReplaceKubernetesRoleBinding(roleBinding);
+        client().createOrReplaceKubernetesRoleBinding(roleBinding);
         deleteLater(roleBinding);
         return new DoneableKubernetesRoleBinding(roleBinding);
     }
@@ -798,7 +803,7 @@ public class Resources extends AbstractResources implements Constants {
 
     DoneableKubernetesClusterRoleBinding kubernetesClusterRoleBinding(KubernetesClusterRoleBinding clusterRoleBinding, String clientNamespace) {
         LOGGER.info("Apply ClusterRoleBinding in namespace {}", clientNamespace);
-        KUBE_CLIENT.createOrReplaceKubernetesClusterRoleBinding(clusterRoleBinding);
+        client().createOrReplaceKubernetesClusterRoleBinding(clusterRoleBinding);
         deleteLater(clusterRoleBinding);
         return new DoneableKubernetesClusterRoleBinding(clusterRoleBinding);
     }
@@ -853,7 +858,7 @@ public class Resources extends AbstractResources implements Constants {
     DoneableService createServiceResource(String appName, int port, String clientNamespace) {
         Service service = getSystemtestsServiceResource(appName, port);
         LOGGER.info("Creating service {} in namespace {}", service.getMetadata().getName(), clientNamespace);
-        KUBE_CLIENT.createService(service);
+        client().createService(service);
         deleteLater(service);
         return new DoneableService(service);
     }
@@ -885,7 +890,7 @@ public class Resources extends AbstractResources implements Constants {
     DoneableIngress createIngress(String appName, int port, String url, String clientNamespace) throws Exception {
         Ingress ingress = getSystemtestIngressResource(appName, port, url);
         LOGGER.info("Creating ingress {} in namespace {}", ingress.getMetadata().getName(), clientNamespace);
-        KUBE_CLIENT.createIngress(ingress);
+        client().createIngress(ingress);
         deleteLater(ingress);
         return new DoneableIngress(ingress);
     }
@@ -1024,7 +1029,7 @@ public class Resources extends AbstractResources implements Constants {
     }
 
     String saslConfigs(KafkaUser kafkaUser) {
-        Secret secret = KUBE_CLIENT.getSecret(kafkaUser.getMetadata().getName());
+        Secret secret = client().getSecret(kafkaUser.getMetadata().getName());
 
         String password = new String(Base64.getDecoder().decode(secret.getData().get("password")));
         if (password.isEmpty()) {
