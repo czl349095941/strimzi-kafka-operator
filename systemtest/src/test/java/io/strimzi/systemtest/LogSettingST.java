@@ -29,7 +29,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static io.strimzi.test.extensions.StrimziExtension.REGRESSION;
-import static io.strimzi.test.k8s.BaseKubeClient.STATEFUL_SET;
+import static io.strimzi.test.k8s.BaseCmdKubeClient.STATEFUL_SET;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -174,11 +174,11 @@ class LogSettingST extends AbstractST {
         String eoName = entityOperatorDeploymentName(CLUSTER_NAME);
         String kafkaName = kafkaClusterName(CLUSTER_NAME);
         String zkName = zookeeperClusterName(CLUSTER_NAME);
-        Map<String, String> connectPods = StUtils.depSnapshot(NAMESPACE, connectName);
-        Map<String, String> mmPods = StUtils.depSnapshot(NAMESPACE, mmName);
-        Map<String, String> eoPods = StUtils.depSnapshot(NAMESPACE, eoName);
-        Map<String, String> kafkaPods = StUtils.ssSnapshot(NAMESPACE, kafkaName);
-        Map<String, String> zkPods = StUtils.ssSnapshot(NAMESPACE, zkName);
+        Map<String, String> connectPods = StUtils.depSnapshot(connectName);
+        Map<String, String> mmPods = StUtils.depSnapshot(mmName);
+        Map<String, String> eoPods = StUtils.depSnapshot(eoName);
+        Map<String, String> kafkaPods = StUtils.ssSnapshot(kafkaName);
+        Map<String, String> zkPods = StUtils.ssSnapshot(zkName);
 
         JvmOptions jvmOptions = new JvmOptions();
         jvmOptions.setGcLoggingEnabled(false);

@@ -21,8 +21,8 @@ public class KubeClusterResource {
 
     private final boolean bootstrap;
     private KubeCluster cluster;
-    private KubeClient cmdClient;
-    private Kubernetes client;
+    private KubeCmdClient cmdClient;
+    private KubeClient client;
     private HelmClient helmClient;
     private static KubeClusterResource kubeClusterResource;
 
@@ -33,10 +33,8 @@ public class KubeClusterResource {
     public static KubeClusterResource getKubeClusterResource() {
         if (kubeClusterResource == null) {
             kubeClusterResource = new KubeClusterResource();
-            return kubeClusterResource;
-        } else {
-            return kubeClusterResource;
         }
+        return kubeClusterResource;
     }
 
     /** Gets the namespace in use */
@@ -44,14 +42,14 @@ public class KubeClusterResource {
         return cmdClient().defaultNamespace();
     }
 
-    public KubeClient cmdClient() {
+    public KubeCmdClient cmdClient() {
         if (cmdClient == null) {
             this.cmdClient = cluster().defaultCmdClient();
         }
         return cmdClient;
     }
 
-    public Kubernetes client() {
+    public KubeClient client() {
         if (client == null) {
             this.client = cluster().defaultClient();
         }

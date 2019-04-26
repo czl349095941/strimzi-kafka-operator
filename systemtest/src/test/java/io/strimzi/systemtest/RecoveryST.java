@@ -19,8 +19,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import java.util.List;
 
 import static io.strimzi.test.extensions.StrimziExtension.REGRESSION;
-import static io.strimzi.test.k8s.BaseKubeClient.CM;
-import static io.strimzi.test.k8s.BaseKubeClient.SERVICE;
+import static io.strimzi.test.k8s.BaseCmdKubeClient.CM;
+import static io.strimzi.test.k8s.BaseCmdKubeClient.SERVICE;
 
 @ExtendWith(StrimziExtension.class)
 @Tag(REGRESSION)
