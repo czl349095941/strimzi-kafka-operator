@@ -11,6 +11,7 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.StatefulSet;
 import io.fabric8.kubernetes.client.internal.readiness.Readiness;
 import io.strimzi.api.kafka.Crds;
+import io.strimzi.systemtest.Constants;
 import io.strimzi.systemtest.Resources;
 import io.strimzi.test.TestUtils;
 import org.apache.logging.log4j.LogManager;
@@ -32,7 +33,7 @@ import java.util.zip.ZipInputStream;
 
 import static io.strimzi.test.BaseITST.kubeClient;
 
-public class StUtils {
+public class StUtils implements Constants {
 
     private static final Logger LOGGER = LogManager.getLogger(StUtils.class);
 
@@ -129,7 +130,7 @@ public class StUtils {
 
     public static Map<String, String> waitTillSsHasRolled(String name, int expectedPods, Map<String, String> snapshot) {
         TestUtils.waitFor("SS roll of " + name,
-            1_000, 450_000, () -> {
+                POLL_INTERVAL_FOR_RESOURCE_READINESS, TIMEOUT_FOR_RESOURCE_READINESS, () -> {
                 try {
                     return ssHasRolled(name, snapshot);
                 } catch (Exception e) {
@@ -143,7 +144,7 @@ public class StUtils {
 
     public static Map<String, String> waitTillDepHasRolled(String name, int expectedPods, Map<String, String> snapshot) {
         TestUtils.waitFor("Deployment roll of " + name,
-            1_000, 300_000, () -> depHasRolled(name, snapshot));
+                POLL_INTERVAL_FOR_RESOURCE_READINESS, TIMEOUT_FOR_RESOURCE_READINESS, () -> depHasRolled(name, snapshot));
         StUtils.waitForDeploymentReady(name);
         StUtils.waitForPodsReady(kubeClient().getDeployment(name).getSpec().getSelector(), expectedPods, true);
         return depSnapshot(name);

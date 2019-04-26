@@ -1314,7 +1314,7 @@ class KafkaST extends MessagingBaseST {
     @AfterEach
     void deleteTestResources() throws Exception {
         deleteResources();
-        waitForDeletion(TIMEOUT_TEARDOWN, NAMESPACE);
+        waitForDeletion(TIMEOUT_TEARDOWN);
     }
 
     @BeforeAll

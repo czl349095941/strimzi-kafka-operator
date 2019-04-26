@@ -77,7 +77,7 @@ public abstract class AbstractNamespaceST extends AbstractST {
     @AfterEach
     void deleteSecondNamespaceResources() throws Exception {
         secondNamespaceResources.deleteResources();
-        waitForDeletion(TIMEOUT_TEARDOWN, SECOND_NAMESPACE);
+        waitForDeletion(TIMEOUT_TEARDOWN);
         setNamespace(CO_NAMESPACE);
     }
 }

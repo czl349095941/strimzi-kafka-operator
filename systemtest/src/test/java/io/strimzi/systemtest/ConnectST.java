@@ -25,7 +25,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import static io.strimzi.systemtest.k8s.Events.Created;
 import static io.strimzi.systemtest.k8s.Events.Failed;
@@ -139,9 +138,7 @@ class ConnectST extends AbstractST {
         resources().kafkaConnect(KAFKA_CLUSTER_NAME, 1).done();
 
         // kafka cluster Connect already deployed
-        List<String> connectPods = kubeClient().listPods("strimzi.io/kind", "KafkaConnect").stream()
-                .map(pod -> pod.getMetadata().getName())
-                .collect(Collectors.toList());
+        List<String> connectPods = kubeClient().listPodNames("strimzi.io/kind", "KafkaConnect");
         int initialReplicas = connectPods.size();
         assertEquals(1, initialReplicas);
         final int scaleTo = initialReplicas + 1;
@@ -149,9 +146,7 @@ class ConnectST extends AbstractST {
         LOGGER.info("Scaling up to {}", scaleTo);
         replaceKafkaConnectResource(KAFKA_CLUSTER_NAME, c -> c.getSpec().setReplicas(initialReplicas + 1));
         StUtils.waitForDeploymentReady(kafkaConnectName(KAFKA_CLUSTER_NAME), initialReplicas + 1);
-        connectPods = kubeClient().listPods("strimzi.io/kind", "KafkaConnect").stream()
-                .map(pod -> pod.getMetadata().getName())
-                .collect(Collectors.toList());
+        connectPods = kubeClient().listPodNames("strimzi.io/kind", "KafkaConnect");
         assertEquals(scaleTo, connectPods.size());
         for (String pod : connectPods) {
             StUtils.waitForPod(pod);
@@ -165,9 +160,7 @@ class ConnectST extends AbstractST {
         while (kubeClient().listPods("strimzi.io/kind", "KafkaConnect").size() == scaleTo) {
             LOGGER.info("Waiting for connect pod deletion");
         }
-        connectPods = kubeClient().listPods("strimzi.io/kind", "KafkaConnect").stream()
-                .map(pod -> pod.getMetadata().getName())
-                .collect(Collectors.toList());
+        connectPods = kubeClient().listPodNames("strimzi.io/kind", "KafkaConnect");
         assertEquals(initialReplicas, connectPods.size());
         for (String pod : connectPods) {
             List<Event> events = kubeClient().listEvents("Pod", pod);
@@ -191,9 +184,7 @@ class ConnectST extends AbstractST {
                 .endLivenessProbe()
             .endSpec().done();
 
-        List<String> connectPods = kubeClient().listPods("strimzi.io/kind", "KafkaConnect").stream()
-                .map(pod -> pod.getMetadata().getName())
-                .collect(Collectors.toList());
+        List<String> connectPods = kubeClient().listPodNames("strimzi.io/kind", "KafkaConnect");
 
         String connectConfig = "{\n" +
                 "      \"config.storage.replication.factor\": \"1\",\n" +
@@ -214,9 +205,7 @@ class ConnectST extends AbstractST {
             StUtils.waitForPodDeletion(connectPod);
         }
         LOGGER.info("Verify values after update");
-        connectPods = kubeClient().listPods("strimzi.io/kind", "KafkaConnect").stream()
-                .map(pod -> pod.getMetadata().getName())
-                .collect(Collectors.toList());
+        connectPods = kubeClient().listPodNames("strimzi.io/kind", "KafkaConnect");
         for (String connectPod : connectPods) {
             String connectPodJson = TestUtils.toJsonString(kubeClient().getPod(connectPod));
             assertThat(connectPodJson, hasJsonPath("$.spec.containers[*].readinessProbe.initialDelaySeconds", hasItem(61)));
